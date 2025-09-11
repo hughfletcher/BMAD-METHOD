@@ -183,9 +183,9 @@ NFR assessment: docs/qa/assessments/{epic}.{story}-nfr-{YYYYMMDD}.md
 
 **Template and Directory:**
 
-- Render from `templates/qa-gate-tmpl.yaml`
-- Create `docs/qa/gates/` directory if missing (or configure in core-config.yaml)
-- Save to: `docs/qa/gates/{epic}.{story}-{slug}.yml`
+- Render from `../templates/qa-gate-tmpl.yaml`
+- Create directory defined in `qa.qaLocation/gates` (see `.bmad-core/core-config.yaml`) if missing
+- Save to: `qa.qaLocation/gates/{epic}.{story}-{slug}.yml`
 
 Gate file structure:
 

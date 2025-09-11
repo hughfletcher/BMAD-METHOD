@@ -49,7 +49,7 @@ program
   .option('-d, --directory <path>', 'Installation directory')
   .option(
     '-i, --ide <ide...>',
-    'Configure for specific IDE(s) - can specify multiple (cursor, claude-code, windsurf, trae, roo, kilo, cline, gemini, qwen-code, github-copilot, other)',
+    'Configure for specific IDE(s) - can specify multiple (cursor, claude-code, windsurf, trae, roo, kilo, cline, gemini, qwen-code, github-copilot, codex, codex-web, auggie-cli, iflow-cli, opencode, other)',
   )
   .option(
     '-e, --expansion-packs <packs...>',
@@ -216,6 +216,7 @@ async function promptInstallation() {
       type: 'input',
       name: 'directory',
       message: 'Enter the full path to your project directory where BMad should be installed:',
+      default: path.resolve('.'),
       validate: (input) => {
         if (!input.trim()) {
           return 'Please enter a valid project path';
@@ -396,6 +397,7 @@ async function promptInstallation() {
         choices: [
           { name: 'Cursor', value: 'cursor' },
           { name: 'Claude Code', value: 'claude-code' },
+          { name: 'iFlow CLI', value: 'iflow-cli' },
           { name: 'Windsurf', value: 'windsurf' },
           { name: 'Trae', value: 'trae' }, // { name: 'Trae', value: 'trae'}
           { name: 'Roo Code', value: 'roo' },
@@ -405,6 +407,10 @@ async function promptInstallation() {
           { name: 'Qwen Code', value: 'qwen-code' },
           { name: 'Crush', value: 'crush' },
           { name: 'Github Copilot', value: 'github-copilot' },
+          { name: 'Auggie CLI (Augment Code)', value: 'auggie-cli' },
+          { name: 'Codex CLI', value: 'codex' },
+          { name: 'Codex Web', value: 'codex-web' },
+          { name: 'OpenCode', value: 'opencode' },
         ],
       },
     ]);
@@ -471,6 +477,75 @@ async function promptInstallation() {
     ]);
 
     answers.githubCopilotConfig = { configChoice };
+  }
+
+  // Configure OpenCode immediately if selected
+  if (ides.includes('opencode')) {
+    console.log(chalk.cyan('\n⚙️  OpenCode Configuration'));
+    console.log(
+      chalk.dim(
+        'OpenCode will include agents and tasks from the packages you selected above; choose optional key prefixes (defaults: no prefixes).\n',
+      ),
+    );
+
+    const { useAgentPrefix, useCommandPrefix } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'useAgentPrefix',
+        message: "Prefix agent keys with 'bmad-'? (e.g., 'bmad-dev')",
+        default: true,
+      },
+      {
+        type: 'confirm',
+        name: 'useCommandPrefix',
+        message: "Prefix command keys with 'bmad:tasks:'? (e.g., 'bmad:tasks:create-doc')",
+        default: true,
+      },
+    ]);
+
+    answers.openCodeConfig = {
+      opencode: {
+        useAgentPrefix,
+        useCommandPrefix,
+      },
+      // pass previously selected packages so IDE setup only applies those
+      selectedPackages: {
+        includeCore: selectedItems.includes('bmad-core'),
+        packs: answers.expansionPacks || [],
+      },
+    };
+  }
+
+  // Configure Auggie CLI (Augment Code) immediately if selected
+  if (ides.includes('auggie-cli')) {
+    console.log(chalk.cyan('\n📍 Auggie CLI Location Configuration'));
+    console.log(chalk.dim('Choose where to install BMad agents for Auggie CLI access.\n'));
+
+    const { selectedLocations } = await inquirer.prompt([
+      {
+        type: 'checkbox',
+        name: 'selectedLocations',
+        message: 'Select Auggie CLI command locations:',
+        choices: [
+          {
+            name: 'User Commands (Global): Available across all your projects (user-wide)',
+            value: 'user',
+          },
+          {
+            name: 'Workspace Commands (Project): Stored in repository, shared with team',
+            value: 'workspace',
+          },
+        ],
+        validate: (selected) => {
+          if (selected.length === 0) {
+            return 'Please select at least one location';
+          }
+          return true;
+        },
+      },
+    ]);
+
+    answers.augmentCodeConfig = { selectedLocations };
   }
 
   // Ask for web bundles installation
