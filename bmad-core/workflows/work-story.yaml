@@ -1,0 +1,412 @@
+workflow:
+  id: work-story
+  name: QA-Developer Story Task Coordination
+  description: >-
+    Coordinates QA and Developer agents to work through a single story systematically.
+    Starts with upfront QA analysis (risk-profile, test-design), then loops through
+    each task with dev implementation followed by QA validation (trace, nfr-assess).
+    Stops when all tasks in the specified story are complete.
+  type: coordination
+  project_types:
+    - story-implementation
+    - qa-coordination
+    - task-validation
+
+  inputs:
+    required:
+      - story_path: Path to the story file to work on
+    optional:
+      - skip_upfront_qa: Skip initial risk-profile and test-design (default: false)
+
+  sequence:
+    - step: validate_story
+      agent: orchestrator
+      action: validate story file exists and is accessible
+      notes: |
+        Validate the provided story path exists and contains tasks to work on.
+        Parse the story file to identify all tasks (checkbox items).
+        If story not found or has no tasks, exit with error message.
+
+    - step: upfront_qa_analysis
+      agent: qa
+      action: run risk-profile command
+      creates: risk assessment document
+      condition: not_skip_upfront_qa
+      skip_confirmation: true
+      notes: |
+        QA Agent runs: *risk-profile {story_path} --skip-confirmation
+        This creates upfront risk analysis for the entire story before task implementation begins.
+        Output saved to: docs/qa/assessments/{epic}.{story}-risk-{YYYYMMDD}.md
+
+    - step: upfront_test_design
+      agent: qa
+      action: run test-design command
+      creates: test design document
+      condition: not_skip_upfront_qa
+      skip_confirmation: true
+      notes: |
+        QA Agent runs: *test-design {story_path} --skip-confirmation
+        This creates comprehensive test scenarios for the story before implementation.
+        Output saved to: docs/qa/assessments/{epic}.{story}-test-design-{YYYYMMDD}.md
+
+    - step: readiness_checkpoint
+      agent: pm_or_po
+      action: review QA outputs and validate story readiness
+      condition: after_qa_analysis
+      creates: readiness_decision
+      notes: |
+        PM/PO Agent reviews the QA analysis outputs and makes a readiness decision:
+        
+        INPUTS TO REVIEW:
+        - Risk assessment document: docs/qa/assessments/{epic}.{story}-risk-{YYYYMMDD}.md
+        - Test design document: docs/qa/assessments/{epic}.{story}-test-design-{YYYYMMDD}.md
+        
+        DECISION CRITERIA:
+        - Are critical risks identified and have mitigation strategies?
+        - Are story requirements clear and testable?
+        - Are all dependencies resolved?
+        - Is the test approach feasible?
+        
+        DECISION OPTIONS:
+        1. **PROCEED**: Story ready for development, continue to task loop
+        2. **BLOCK**: Critical issues prevent development, halt workflow completely
+        3. **REFINE**: Story needs refinement but is salvageable, pause for fixes
+        
+        DECISION ROUTING:
+        - PROCEED → Continue to task_iteration_loop
+        - BLOCK → Exit workflow with blocking reasons
+        - REFINE → Route to story_refinement step
+
+    - step: story_refinement
+      agent: pm_or_po_or_sm
+      action: refine story based on QA feedback
+      condition: decision_equals_refine
+      notes: |
+        Story Refinement Process:
+        - Address issues identified in QA analysis
+        - Clarify acceptance criteria if needed
+        - Resolve missing requirements
+        - Update story file with refinements
+        
+        POST-REFINEMENT OPTIONS:
+        - Minor changes: Continue to development (skip re-QA)
+        - Major changes: Return to QA analysis (re-run risk-profile/test-design)
+        - Ask user: "Should we re-run QA analysis or proceed to development?"
+
+    - step: re_qa_analysis
+      agent: qa
+      action: re-run QA analysis if needed
+      condition: refinement_requires_re_qa
+      optional: true
+      notes: |
+        If story refinement was significant, optionally re-run:
+        - QA Agent: *risk-profile {story_path} (update risk assessment)
+        - QA Agent: *test-design {story_path} (update test scenarios)
+        - Return to readiness_checkpoint for final decision
+
+    - step: set_story_in_progress
+      agent: dev
+      action: update story status to 'In Progress'
+      condition: decision_equals_proceed
+      notes: |
+        CRITICAL: Dev Agent MUST update story status from 'Approved' to 'In Progress'
+        This happens BEFORE starting the task iteration loop
+        Dev Agent actions:
+        - Read the story file
+        - Update Status section to 'In Progress'
+        - Save the updated story file
+
+    - step: task_iteration_loop
+      agent: multiple
+      action: iterate through story tasks
+      repeats: for_each_unchecked_task
+      condition: decision_equals_proceed
+      notes: |
+        For each unchecked task ([ ]) in the story file:
+        
+        1. DEV PHASE:
+           - Switch to dev agent: *agent dev
+           - Run: *develop-story
+           - Dev implements the current task
+           - CRITICAL: Dev MUST mark task checkbox [x] when complete IN THE STORY DOC
+           - CRITICAL: Dev MUST update Dev Agent Record sections IN THE STORY DOC ONLY (Debug Log, Completion Notes, File List)
+           - CRITICAL: Dev MUST update File List IN THE STORY DOC with all created/modified files
+           - WARNING: Dev should NOT create separate documentation files - ALL documentation goes in the story doc
+        
+        2. QA VALIDATION PHASE:
+           - Switch to qa agent: *agent qa  
+           - Run: *trace {story_path}
+           - Creates requirements traceability for the implemented task
+           - Run: *nfr-assess {story_path}
+           - Assesses non-functional requirements for the task
+           - CRITICAL: QA MUST update QA Results section in story file
+           - If issues found: Document in QA Results and continue
+           - If no issues: Mark validation as passed in QA Results
+        
+        3. VALIDATION CHECKPOINT:
+           - CRITICAL: Verify dev has marked task checkbox [x] IN THE STORY DOC
+           - Verify Dev Agent Record sections are updated IN THE STORY DOC
+           - Verify QA Results section has been updated IN THE STORY DOC
+           - If task not marked [x]: STOP and require dev to mark it in story doc
+           - If any missing: Alert and require completion IN STORY DOC before continuing
+        
+        4. CONTINUE TO NEXT TASK:
+           - Move to next unchecked task
+           - Repeat dev + qa cycle
+        
+        LOOP TERMINATION:
+        - Stop when all tasks in story are [x] (checked)
+        - Do NOT proceed to other stories
+        - Continue to finalize_story_status step
+
+    - step: validate_dev_completion
+      agent: orchestrator
+      action: verify dev agent properly updated story
+      condition: all_tasks_complete
+      notes: |
+        VALIDATION CHECKLIST:
+        Check that dev agent has IN THE STORY DOC:
+        - ✓ All task checkboxes marked [x] in the story doc
+        - ✓ Dev Agent Record sections updated IN THE STORY DOC (Agent Model Used, Debug Log References, Completion Notes List)
+        - ✓ File List updated IN THE STORY DOC with all created/modified files
+        - ✓ Change Log updated IN THE STORY DOC with implementation entry
+        - ✓ NO separate documentation files created (all docs should be in story doc)
+        
+        If any missing:
+        - Alert user: "Dev agent did not complete all required story updates"
+        - List missing sections
+        - Request dev agent to complete missing updates
+
+    - step: finalize_story_status
+      agent: dev_then_qa
+      action: update story status based on completion
+      condition: all_tasks_complete
+      notes: |
+        CRITICAL STATUS UPDATE SEQUENCE:
+        
+        1. DEV AGENT FINAL ACTIONS:
+           - Verify all tasks are marked [x] IN THE STORY DOC
+           - Ensure Dev Agent Record is complete IN THE STORY DOC
+           - Ensure File List contains all changes IN THE STORY DOC
+           - Update story status to 'Ready for Review' IN THE STORY DOC
+           - VERIFY: No separate documentation files were created
+        
+        2. QA AGENT FINAL REVIEW:
+           - Review overall story implementation
+           - Check QA Results section is complete
+           - If no blocking issues: Update status to 'Done'
+           - If issues remain: Keep status as 'Ready for Review' for human review
+        
+        STATUS FLOW:
+        - Dev completes all tasks → Status: 'Ready for Review'
+        - QA validates story → Status: 'Done' (if passed) or stays 'Ready for Review' (if issues)
+
+    - workflow_end_success:
+      action: story_complete
+      condition: all_tasks_complete
+      notes: |
+        ✅ All tasks in the specified story have been implemented and validated!
+        
+        FINAL STATUS CHECK:
+        - Story status should be: "Done" (if QA approved without issues)
+        - OR: "Ready for Review" (if QA found issues needing human review)
+        - Dev Agent Record: Complete with all implementation details
+        - QA Results: Complete with validation outcomes
+        
+        Artifacts created:
+        - Risk assessment: docs/qa/assessments/{epic}.{story}-risk-{YYYYMMDD}.md
+        - Test design: docs/qa/assessments/{epic}.{story}-test-design-{YYYYMMDD}.md
+        - Requirements trace: docs/qa/assessments/{epic}.{story}-trace-{YYYYMMDD}.md
+        - NFR assessments: docs/qa/assessments/{epic}.{story}-nfr-{YYYYMMDD}.md
+        - Implementation files: Listed in story's File List section
+        
+        Workflow complete - do not proceed to additional stories.
+
+    - workflow_end_blocked:
+      action: story_blocked
+      condition: decision_equals_block
+      notes: |
+        ❌ Workflow BLOCKED - Story not ready for development
+        
+        BLOCKING REASONS (from readiness checkpoint):
+        - [List specific issues identified in QA analysis]
+        - [Critical risks without mitigation strategies]
+        - [Missing dependencies or unclear requirements]
+        - [Infeasible test approach or environment issues]
+        
+        NEXT STEPS:
+        1. Address the blocking issues identified above
+        2. Update the story file with resolved issues
+        3. Restart the workflow: *workflow work-story {story_path}
+        
+        Artifacts available for reference:
+        - Risk assessment: docs/qa/assessments/{epic}.{story}-risk-{YYYYMMDD}.md
+        - Test design: docs/qa/assessments/{epic}.{story}-test-design-{YYYYMMDD}.md
+        
+        Workflow terminated to prevent wasted development effort.
+
+  flow_diagram: |
+    ```mermaid
+    graph TD
+        A[Start: work-story workflow] --> B[Validate story path]
+        B --> C{Story valid?}
+        C -->|No| Z[Exit with error]
+        C -->|Yes| D[QA: risk-profile]
+        
+        D --> E[QA: test-design]
+        E --> F[PM/PO: Readiness Checkpoint]
+        F --> G{Ready for dev?}
+        
+        G -->|PROCEED| S[Dev: Set status to In Progress]
+        G -->|BLOCK| Z2[❌ Workflow Blocked]
+        G -->|REFINE| R[PM/PO: Refine story]
+        
+        R --> R2{Re-run QA?}
+        R2 -->|Yes| D
+        R2 -->|No| S
+        
+        S --> H[Parse story tasks]
+        H --> I{Unchecked tasks?}
+        I -->|No| FS[Finalize Story Status]
+        I -->|Yes| J[Dev: develop-story + update sections]
+        
+        J --> K[Task implemented?]
+        K -->|No| J
+        K -->|Yes| L[QA: trace + update QA Results]
+        
+        L --> M[QA: nfr-assess + update QA Results]
+        M --> N[Mark task complete]
+        N --> I
+        
+        FS --> Y[✅ Workflow Complete]
+        
+        style A fill:#90EE90
+        style Y fill:#90EE90  
+        style Z fill:#FFB6C1
+        style Z2 fill:#FFB6C1
+        style D fill:#F0E68C
+        style E fill:#F0E68C
+        style F fill:#DDA0DD
+        style R fill:#DDA0DD
+        style S fill:#87CEEB
+        style J fill:#ADD8E6
+        style L fill:#F0E68C
+        style M fill:#F0E68C
+        style FS fill:#98FB98
+    ```
+
+  decision_guidance:
+    when_to_use:
+      - You have a specific story ready for implementation
+      - You want coordinated dev-qa validation on each task
+      - You need upfront risk and test planning
+      - You want to ensure systematic task completion
+      - You need comprehensive QA validation per task
+
+    when_not_to_use:
+      - Working across multiple stories simultaneously
+      - Story is still in draft status
+      - Only need development without QA coordination
+      - Story has no defined tasks/checkboxes
+
+  handoff_prompts:
+    story_validation: |
+      Story validated: {{story_path}}
+      Tasks found: {{task_count}}
+      Beginning upfront QA analysis phase.
+
+    upfront_qa_complete: |
+      Upfront QA analysis complete:
+      - Risk profile: {{risk_doc_path}}
+      - Test design: {{test_doc_path}}
+      
+      Proceeding to readiness checkpoint for PM/PO review...
+
+    readiness_checkpoint_complete: |
+      Readiness checkpoint decision: {{decision}}
+      
+      {{if_proceed}}: Story approved for development. Beginning task-by-task implementation loop.
+      {{if_block}}: Story BLOCKED - critical issues prevent development. Workflow halted.
+      {{if_refine}}: Story requires refinement. Routing to {{assigned_agent}} for fixes.
+
+    story_refinement_complete: |
+      Story refinement complete by {{agent}}.
+      Decision: {{re_qa_decision}}
+      
+      {{if_re_qa}}: Returning to QA analysis for updated assessment.
+      {{if_proceed}}: Refinements complete, proceeding to development.
+
+    story_status_update: |
+      {{agent}} updating story status:
+      From: {{old_status}}
+      To: {{new_status}}
+      Reason: {{reason}}
+      
+      CRITICAL: This status change MUST be reflected in the story file.
+
+    task_cycle_start: |
+      Starting task {{task_number}} of {{total_tasks}}:
+      Task: {{task_description}}
+      
+      Switching to dev agent for implementation...
+      CRITICAL REMINDER: Dev MUST:
+      1. Mark task checkbox [x] IN THE STORY DOC when complete
+      2. Update Dev Agent Record sections IN THE STORY DOC
+      3. NOT create separate documentation files
+
+    task_dev_complete: |
+      Task implementation complete.
+      Dev Agent checklist (ALL IN STORY DOC):
+      - [ ] Task checkbox marked [x] IN STORY DOC
+      - [ ] Dev Agent Record updated IN STORY DOC
+      - [ ] File List updated IN STORY DOC
+      - [ ] NO separate documentation files created
+      
+      VERIFY: Check the story doc now to ensure task is marked [x]
+      Switching to QA agent for validation...
+
+    task_qa_complete: |
+      Task QA validation complete:
+      - Requirements traced
+      - NFRs assessed
+      - QA Results section updated
+      
+      {{if_more_tasks}}: Moving to next task...
+      {{if_no_more_tasks}}: All tasks complete! Moving to finalize status...
+
+    finalize_status_dev: |
+      Dev Agent finalizing story:
+      - All tasks verified as [x]
+      - Dev Agent Record complete
+      - File List complete
+      - Setting status to: "Ready for Review"
+
+    finalize_status_qa: |
+      QA Agent final review:
+      - QA Results section complete
+      - Overall implementation assessment: {{assessment}}
+      
+      {{if_no_issues}}: Setting status to: "Done"
+      {{if_has_issues}}: Keeping status as: "Ready for Review" for human review
+
+    workflow_complete: |
+      🎉 Story implementation and validation complete!
+      
+      Story: {{story_path}}
+      Final Status: {{final_status}}
+      Tasks completed: {{completed_count}}
+      QA artifacts: {{artifact_count}}
+      
+      {{if_done}}: Story approved and marked as Done.
+      {{if_review}}: Story requires human review before final approval.
+
+  usage_examples:
+    basic: "*workflow work-story docs/stories/2.2.jwt-authentication-laravel-sanctum.md"
+    skip_upfront: "*workflow work-story docs/stories/2.2.jwt-authentication-laravel-sanctum.md --skip_upfront_qa=true"
+
+  integration_notes:
+    - Requires existing BMad dev and qa agents
+    - Uses standard BMad task commands (develop-story, trace, nfr-assess, risk-profile, test-design)
+    - Story files must follow BMad story format with task checkboxes
+    - QA artifacts saved to standard docs/qa/assessments/ location
+    - Agent switching uses standard BMad *agent command
