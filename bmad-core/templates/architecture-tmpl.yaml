@@ -259,6 +259,12 @@ sections:
           **Key Endpoints Used:**
           - `{{method}} {{endpoint_path}}` - {{endpoint_purpose}}
 
+          **Configuration Requirements:**
+          - **Environment Variables:** {{env_vars_needed}}
+          - **Config Files:** {{config_files_if_needed}}
+          - **Test Environment:** {{test_endpoint_url}}
+          - **Production Environment:** {{prod_endpoint_url}}
+
           **Integration Notes:** {{integration_considerations}}
 
   - id: core-workflows
