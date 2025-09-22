@@ -342,6 +342,14 @@ sections:
           **Key Endpoints Used:**
           - `{{method}} {{endpoint_path}}` - {{endpoint_purpose}}
 
+          **Configuration Requirements:**
+          - **MCP Server:** {{mcp_server_name}} (if available)
+          - **API Endpoint:** {{base_api_endpoint}}
+          - **Environment Variables:** {{env_vars_needed}}
+          - **Config Files:** {{config_files_if_needed}}
+          - **Test Environment:** {{test_endpoint_url_or_same_as_prod}}
+          - **Production Environment:** {{prod_endpoint_url_or_same_as_test}}
+
           **Integration Notes:** {{integration_considerations}}
 
   - id: core-workflows
