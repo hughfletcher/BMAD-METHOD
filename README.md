@@ -81,7 +81,7 @@ npx bmad-method@stable install
 git pull
 npm run install:bmad
 # OR install my fork
-npx --yes --package=github:hughfletcher/BMAD-METHOD#main bmad-method install
+npx --yes --package=github:hughfletcher/BMAD-METHOD#rel/v5.1.3 bmad-method install
 ```
 
 This single command handles:
