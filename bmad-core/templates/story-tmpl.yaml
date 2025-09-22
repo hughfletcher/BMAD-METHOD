@@ -51,40 +51,14 @@ sections:
     owner: scrum-master
     editors: [scrum-master]
 
-  - id: external-service-dependencies
-    title: External Service Dependencies
-    condition: Story requires external service setup
-    instruction: |
-      Only populate this section if this specific story requires NEW external service setup.
-      Reference architecture docs for service details.
-    owner: scrum-master
-    editors: [scrum-master, dev-agent]
-    sections:
-      - id: blocking-notice
-        title: ⚠️ BLOCKING - User Setup Required
-        template: |
-          This story cannot proceed until external services below are configured.
-          
-      - id: service-setup-tasks
-        title: Service Setup Tasks (User Responsibility)
-        type: checklist
-        template: |
-          - [ ] {{service_name}} Setup
-            - Purpose: {{why_needed_for_story}}
-            - Documentation: See architecture/external-apis.md#{{service_name}}
-            - Required Credentials: {{credential_type}}
-            - Quick Setup:
-              1. {{setup_step_1}}
-              2. {{setup_step_2}}
-              3. {{setup_step_3}}
-            - Verify Setup: {{simple_verification_command}}
-
   - id: tasks-subtasks
     title: Tasks / Subtasks
     type: bullet-list
     instruction: |
       Break down the story into specific tasks and subtasks needed for implementation.
       Reference applicable acceptance criteria numbers where relevant.
+      
+      If external services required, insert external-services-tmpl.yaml just before this section.
     template: |
       - [ ] Task 1 (AC: # if applicable)
         - [ ] Subtask1.1...

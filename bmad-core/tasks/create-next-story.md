@@ -69,25 +69,19 @@ Extract:
 
 ALWAYS cite source documents: `[Source: architecture/{filename}.md#{section}]`
 
-### 3.5 Detect External Service Dependencies
+### 3.5 External Service Integration
 
 - **Check for External Service Requirements:**
   - Scan story requirements for mentions of external APIs, third-party services, or integrations
   - Review architecture `external-apis` section for services mentioned in story
   - Look for authentication, data fetching, or webhook requirements in story acceptance criteria
 
-- **If External Services Detected:**
-  - Add "External Service Dependencies" section to story template
-  - Populate service setup tasks with details from architecture docs
-  - Include service name, purpose for this story, credential requirements
-  - Add connection test as first development task in Tasks/Subtasks section
-  - Set initial story status to "Blocked" with note about required setup
-
-- **Service Setup Information to Include:**
-  - Service name and purpose for this specific story
-  - Reference to architecture documentation section
-  - Basic setup steps (keep detailed instructions in architecture)
-  - Simple verification command to test setup
+- **If External Services Required:**
+  - Insert `external-services-tmpl.yaml` template just before Tasks/Subtasks section
+  - Auto-detect available MCP servers and API endpoints for required services
+  - Populate template with specific service details and required actions
+  - Include both MCP/API preferred method and detailed manual fallback instructions
+  - Set initial story status to "Blocked" until service configuration is completed
 
 ### 4. Verify Project Structure Alignment
 
@@ -113,10 +107,6 @@ ALWAYS cite source documents: `[Source: architecture/{filename}.md#{section}]`
   - If information for a category is not found in the architecture docs, explicitly state: "No specific guidance found in architecture docs"
 - **`Tasks / Subtasks` section:**
   - Generate detailed, sequential list of technical tasks based ONLY on: Epic Requirements, Story AC, Reviewed Architecture Information
-  - **If external services detected in Step 3.5:**
-    - Start with user setup tasks: "Complete external service setup and mark checkboxes"
-    - Add connection test as first development task: "Create connection test for {service_name}"
-    - Include subtasks: test connectivity, validate credentials, handle connection errors
   - Each task must reference relevant architecture documentation
   - Include unit testing as explicit subtasks based on the Testing Strategy
   - Link tasks to ACs where applicable (e.g., `Task 1 (AC: 1, 3)`)
