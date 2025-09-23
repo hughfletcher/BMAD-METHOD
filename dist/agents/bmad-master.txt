@@ -103,6 +103,7 @@ dependencies:
     - prd-tmpl.yaml
     - project-brief-tmpl.yaml
     - story-tmpl.yaml
+    - external-services-tmpl.yaml
   data:
     - bmad-kb.md
     - brainstorming-techniques.md
@@ -1571,6 +1572,20 @@ Extract:
 
 ALWAYS cite source documents: `[Source: architecture/{filename}.md#{section}]`
 
+### 3.5 External Service Integration
+
+- **Check for External Service Requirements:**
+  - Scan story requirements for mentions of external APIs, third-party services, or integrations
+  - Review architecture `external-apis` section for services mentioned in story
+  - Look for authentication, data fetching, or webhook requirements in story acceptance criteria
+
+- **If External Services Required:**
+  - Insert `external-services-tmpl.yaml` template just before Tasks/Subtasks section
+  - Auto-detect available MCP servers and API endpoints for required services
+  - Populate template with specific service details and required actions
+  - Include both MCP/API preferred method and detailed manual fallback instructions
+  - Set initial story status to "Blocked" until service configuration is completed
+
 ### 4. Verify Project Structure Alignment
 
 - Cross-reference story requirements with Project Structure Guide from `docs/architecture/unified-project-structure.md`
@@ -2384,6 +2399,14 @@ sections:
           **Key Endpoints Used:**
           - `{{method}} {{endpoint_path}}` - {{endpoint_purpose}}
 
+          **Configuration Requirements:**
+          - **MCP Server:** {{mcp_server_name}} (if available)
+          - **API Endpoint:** {{base_api_endpoint}}
+          - **Environment Variables:** {{env_vars_needed}}
+          - **Config Files:** {{config_files_if_needed}}
+          - **Test Environment:** {{test_endpoint_url_or_same_as_prod}}
+          - **Production Environment:** {{prod_endpoint_url_or_same_as_test}}
+
           **Integration Notes:** {{integration_considerations}}
 
   - id: core-workflows
@@ -3047,6 +3070,14 @@ sections:
 
           **Key Endpoints Used:**
           - `{{method}} {{endpoint_path}}` - {{endpoint_purpose}}
+
+          **Configuration Requirements:**
+          - **MCP Server:** {{mcp_server_name}} (if available)
+          - **API Endpoint:** {{base_api_endpoint}}
+          - **Environment Variables:** {{env_vars_needed}}
+          - **Config Files:** {{config_files_if_needed}}
+          - **Test Environment:** {{test_endpoint_url_or_same_as_prod}}
+          - **Production Environment:** {{prod_endpoint_url_or_same_as_test}}
 
           **Error Handling:** {{error_handling_strategy}}
 
@@ -4764,6 +4795,14 @@ sections:
           **Key Endpoints Used:**
           - `{{method}} {{endpoint_path}}` - {{endpoint_purpose}}
 
+          **Configuration Requirements:**
+          - **MCP Server:** {{mcp_server_name}} (if available)
+          - **API Endpoint:** {{base_api_endpoint}}
+          - **Environment Variables:** {{env_vars_needed}}
+          - **Config Files:** {{config_files_if_needed}}
+          - **Test Environment:** {{test_endpoint_url_or_same_as_prod}}
+          - **Production Environment:** {{prod_endpoint_url_or_same_as_test}}
+
           **Integration Notes:** {{integration_considerations}}
 
   - id: core-workflows
@@ -5989,6 +6028,8 @@ sections:
     instruction: |
       Break down the story into specific tasks and subtasks needed for implementation.
       Reference applicable acceptance criteria numbers where relevant.
+      
+      If external services required, insert external-services-tmpl.yaml just before this section.
     template: |
       - [ ] Task 1 (AC: # if applicable)
         - [ ] Subtask1.1...
@@ -6069,6 +6110,74 @@ sections:
     owner: qa-agent
     editors: [qa-agent]
 ==================== END: .bmad-core/templates/story-tmpl.yaml ====================
+
+==================== START: .bmad-core/templates/external-services-tmpl.yaml ====================
+# External Services Template
+# Insert this template just prior to Tasks/Subtasks section when external services are required
+
+sections:
+  - id: external-service-dependencies
+    title: External Service Dependencies
+    instruction: |
+      Insert this section when story requires external service setup.
+      Auto-detect MCP servers and API endpoints, populate accordingly.
+      Include detailed manual setup as fallback.
+    owner: scrum-master
+    editors: [scrum-master, dev-agent]
+    sections:
+      - id: blocking-notice
+        title: ⚠️ BLOCKING - Service Configuration Required
+        template: |
+          This story cannot proceed until external services below are configured.
+          MCP/API configuration is preferred; manual setup available as fallback.
+          
+      - id: service-setup-tasks
+        title: Service Setup Tasks
+        type: checklist
+        template: |
+          - [ ] {{service_name}} Configuration
+            - **MCP/API Method (Preferred):**
+              - MCP Server: {{mcp_server_name}} (if available)
+              - API Endpoint: {{api_endpoint}}
+              - Environment Differences: {{none_or_describe_differences}}
+              - Required Actions:
+                1. {{specific_mcp_action_1}}
+                2. {{specific_mcp_action_2}}
+                3. {{specific_mcp_action_3}}
+              - Dev Documentation Updates: {{dev_doc_updates_needed}}
+              - Verification: {{mcp_verification_command}}
+            
+            - **Manual Setup (Fallback):**
+              - Purpose: {{why_needed_for_story}}
+              - Required Credentials: {{credential_type}}
+              - Account Setup:
+                1. {{manual_setup_step_1}}
+                2. {{manual_setup_step_2}}
+                3. {{manual_setup_step_3}}
+              - Environment Variables:
+                - {{env_var_1}}: {{env_var_1_description}}
+                - {{env_var_2}}: {{env_var_2_description}}
+              - Configuration Files: {{config_files_needed}}
+              - Test Connection: {{manual_connection_test}}
+              - Verification: {{manual_verification_command}}
+
+      - id: setup-completion
+        title: Setup Completion Checklist
+        type: checklist
+        template: |
+          - [ ] Service credentials obtained and configured
+          - [ ] Connection test successful
+          - [ ] Environment variables set
+          - [ ] Configuration files updated
+          - [ ] Dev agent documentation updated (if applicable)
+          - [ ] Ready for development tasks
+
+# Usage Instructions:
+# 1. Insert this template just before Tasks/Subtasks section in story
+# 2. Replace {{placeholders}} with actual service details
+# 3. Remove unused sections (MCP/API OR Manual, not both)
+# 4. Ensure all checkboxes are completed before development begins
+==================== END: .bmad-core/templates/external-services-tmpl.yaml ====================
 
 ==================== START: .bmad-core/checklists/architect-checklist.md ====================
 # Architect Solution Validation Checklist

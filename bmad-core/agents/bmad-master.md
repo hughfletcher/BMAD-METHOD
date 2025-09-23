@@ -86,6 +86,7 @@ dependencies:
     - prd-tmpl.yaml
     - project-brief-tmpl.yaml
     - story-tmpl.yaml
+    - external-services-tmpl.yaml
   data:
     - bmad-kb.md
     - brainstorming-techniques.md

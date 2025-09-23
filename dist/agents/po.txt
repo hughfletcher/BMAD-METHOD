@@ -644,6 +644,8 @@ sections:
     instruction: |
       Break down the story into specific tasks and subtasks needed for implementation.
       Reference applicable acceptance criteria numbers where relevant.
+      
+      If external services required, insert external-services-tmpl.yaml just before this section.
     template: |
       - [ ] Task 1 (AC: # if applicable)
         - [ ] Subtask1.1...

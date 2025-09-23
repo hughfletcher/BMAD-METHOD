@@ -53,7 +53,6 @@ activation-instructions:
   - Assess user goal against available agents and workflows in this bundle
   - If clear match to an agent's expertise, suggest transformation with *agent command
   - If project-oriented, suggest *workflow-guidance to explore options
-  - Load resources only when needed - never pre-load
 agent:
   name: BMad Orchestrator
   id: bmad-orchestrator

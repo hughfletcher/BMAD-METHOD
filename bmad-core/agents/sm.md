@@ -58,6 +58,7 @@ dependencies:
     - correct-course.md
   templates:
     - story-tmpl.yaml
+    - external-services-tmpl.yaml
   checklists:
     - story-draft-checklist.md
 ```
